@@ -20,4 +20,4 @@ cd "$(dirname "$(readlink -f "$0")")/.."
 
 export PATH="/root/.local/bin:$PATH"
 
-uv sync
+uv sync --frozen
