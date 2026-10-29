@@ -1,0 +1,10 @@
+[Unit]
+Description=Check the testbed if the nightly lease is on, and turn it off if not busy
+
+[Service]
+Type=oneshot
+# nightly.py forks `rhubarbe bye` through a shell, so the venv that
+# contains rhubarbe has to come first in the PATH
+Environment=PATH=/root/r2lab-nightly/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/root/r2lab-nightly/.venv/bin/python /root/r2lab-nightly/nightly.py
+TimeoutStartSec=3600

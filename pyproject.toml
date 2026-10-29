@@ -1,0 +1,26 @@
+[project]
+name = "r2lab-nightly"
+version = "0.1.0"
+description = "Nightly health check of the R2Lab testbed"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    'rhubarbe',
+    'asyncssh',
+    'asynciojobs',
+    'apssh',
+    'r2lab',
+    'requests',
+]
+
+# this is a set of scripts, not an installable package
+# so uv only has to build the environment
+[tool.uv]
+package = false
+
+# rhubarbe is NOT installed from pypi or git, but taken as is from the
+# checkout that run-updates keeps current, so that nightly always runs
+# against the very same rhubarbe code as the services; this repo is
+# specific to faraday and distrait anyway
+[tool.uv.sources]
+rhubarbe = { path = "/opt/rhubarbe", editable = true }
