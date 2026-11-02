@@ -79,6 +79,12 @@ IMAGES_TO_CHECK = [
     # ("centos-8-ssh", ["CentOS"]),
 ]
 
+# power-cycle robustness: some nodes come back ON 5 to 10 seconds
+# after they were sent OFF, so check OFF after OFF_CHECK_DELAY seconds,
+# and do the off/on sequence OFF_ON_ROUNDS times
+OFF_CHECK_DELAY = 10.
+OFF_ON_ROUNDS = 3
+
 
 # reasons for failure
 class Reason(IntEnum):
@@ -192,10 +198,11 @@ class Nightly:                                         # pylint: disable=r0902
             self.print(f"sidecar update failed for node {node.id}: {exc}")
 
 
-    def global_send_action(self, mode):
-        delay = 5.
+    def global_send_action(self, mode, delay=5.):
         self.verbose_msg(f"delay={delay}")
-        nodes = self.nodes
+        # nodes that already failed in a previous round are left alone
+        nodes = [node for node in self.nodes
+                 if node.id not in self.failures]
         actions = (node.send_action(message=mode, check=True, check_delay=delay)
                    for node in nodes)
         async def gather_with_timeout(*actions, timeout):
@@ -382,7 +389,16 @@ class Nightly:                                         # pylint: disable=r0902
         if not self.dry_run:
             self.global_send_action('on')
             self.global_send_action('reset')
-            self.global_send_action('off')
+            # a misbehaving node typically comes back on 5 to 10 seconds
+            # after it pretended to turn off; so wait OFF_CHECK_DELAY
+            # before checking, and repeat the off/on sequence a few times
+            # to make the detection more robust
+            # (the sequence ends with off, as it used to)
+            for round_number in range(1, OFF_ON_ROUNDS + 1):
+                self.print(f"off/on round {round_number}/{OFF_ON_ROUNDS}")
+                self.global_send_action('off', delay=OFF_CHECK_DELAY)
+                if round_number < OFF_ON_ROUNDS:
+                    self.global_send_action('on')
         else:
             print("nightly in dry_run mode just does ON - off and reset are skipped")
             self.global_send_action('on')
