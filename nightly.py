@@ -74,8 +74,8 @@ SSL_ARGS = dict(
 #  0: image name (for rload)
 #  1: strings to expect in /etc/rhubarbe-image (any of these means it's OK)
 IMAGES_TO_CHECK = [
-    ("ubuntu-24", ["ubuntu-24", "u24"]),
-    ("fedora-41", ["fedora-41", "f41"]),
+    ("ubuntu-26", ["ubuntu-26", "u26"]),
+    ("fedora-44", ["fedora-44", "f44"]),
     # ("centos-8-ssh", ["CentOS"]),
 ]
 
