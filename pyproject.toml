@@ -9,7 +9,6 @@ dependencies = [
     'asyncssh',
     'asynciojobs',
     'apssh',
-    'r2lab',
     'requests',
 ]
 

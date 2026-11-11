@@ -9,7 +9,9 @@ the V0 testbed (distrait).
   once unless the `r2lab-nightly` slice currently holds a lease. When it does,
   for each node it turns it on, pings it, turns it off, checks it is down,
   then loads reference image 1 and checks the node, same with image 2.
-  It reports on the sidecar, sends a mail, and ends with
+  A failing node is marked unavailable in r2labapi, with the reason (this
+  needs `admin_token` in the `[r2labapi]` section of `rhubarbe.conf.local`);
+  a node that already is marked is left alone. It also sends a mail, and ends with
   `rhubarbe bye --nodes --phones --pdus`, which is forked on purpose, for
   process isolation and a hard timeout.
 - `nightmail.py` builds and sends the report mail; it is imported by

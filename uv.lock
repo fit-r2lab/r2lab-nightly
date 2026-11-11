@@ -2092,7 +2092,6 @@ dependencies = [
     { name = "apssh" },
     { name = "asynciojobs" },
     { name = "asyncssh" },
-    { name = "r2lab" },
     { name = "requests" },
     { name = "rhubarbe" },
 ]
@@ -2102,7 +2101,6 @@ requires-dist = [
     { name = "apssh" },
     { name = "asynciojobs" },
     { name = "asyncssh" },
-    { name = "r2lab" },
     { name = "requests" },
     { name = "rhubarbe", editable = "/opt/rhubarbe" },
 ]

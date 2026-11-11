@@ -8,7 +8,8 @@ Features:
 (*) designed to be run on an hourly basis, at typically nn:19
     will check for a lease being currently held by nightly slice; returns if not
 (*) defaults to all nodes but can exclude some hand-picked ones on the command-line
-(*) updates sidecar status (available / unavailable)
+(*) marks failing nodes as unavailable in r2labapi, with the reason why
+    (the monitor then shows it in the sidecar and the web interface)
 (*) sends status mail
 
 Performed checks on all nodes:
@@ -28,7 +29,6 @@ import os
 import signal
 import subprocess
 import time
-import ssl
 from enum import IntEnum
 from argparse import ArgumentParser
 import logging
@@ -39,8 +39,6 @@ from asyncssh import set_log_level
 
 from asynciojobs import Scheduler, Job, set_debug as set_asynciojobs_debug
 from apssh import SshNode, SshJob, load_private_keys
-
-from r2lab.sidecar import SidecarSyncClient
 
 from rhubarbe.config import Config
 from rhubarbe.imagesrepo import ImagesRepo
@@ -61,14 +59,6 @@ from nightmail import complete_html, send_email
 NIGHTLY_SLICE = "r2lab-nightly"
 EMAIL_FROM = "nightly@faraday.inria.fr"
 EMAIL_TO = ["fit-r2lab-dev@inria.fr"]
-
-# ws: looked more appropriate but won't work as it turns out
-# SIDECAR_URL = "ws://r2lab-sidecar.inria.fr:443/"
-SIDECAR_URL = "wss://r2lab-sidecar.inria.fr:443/"
-SSL_ARGS = dict(
-    # we cannot verify the server certificate - as it has none for now
-    # ssl=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)) as sidecar:
-)
 
 # each image is defined by a tuple
 #  0: image name (for rload)
@@ -94,6 +84,17 @@ class Reason(IntEnum):
     WONT_SSH = 4
     CANT_CHECK_IMAGE = 5
     DID_NOT_LOAD = 6
+
+    def describe(self):
+        "a stable text, as it ends up in the history of the node in r2labapi"
+        return {
+            Reason.WONT_TURN_ON: "won't turn on",
+            Reason.WONT_TURN_OFF: "won't turn off",
+            Reason.WONT_RESET: "won't reset",
+            Reason.WONT_SSH: "ssh is not reachable",
+            Reason.CANT_CHECK_IMAGE: "cannot check the image",
+            Reason.DID_NOT_LOAD: "image did not load",
+        }[self]
 
     def mail_column(self):
         # the outgoing mail comes with 3 columns
@@ -191,11 +192,34 @@ class Nightly:                                         # pylint: disable=r0902
         self.failures[node.id] = reason
         self.print(f"marking node {node.id} as unavailable for reason {reason}"
                    f" {message or ''}")
+        self.mark_unavailable(node, reason)
+
+    def mark_unavailable(self, node, reason):
+        """
+        record in r2labapi that the node is not available; this needs
+        the admin_token in the [r2labapi] section of the rhubarbe config;
+        a node that is already marked is left alone, so as not to overwrite
+        a reason that somebody wrote, nor to fill the history every hour
+        """
+        if self.dry_run:
+            self.print(f"dry_run mode: node {node.id} not marked as"
+                       f" unavailable ({reason.describe()})")
+            return
         try:
-            with SidecarSyncClient(SIDECAR_URL, timeout=10, **SSL_ARGS) as sidecar:
-                sidecar.set_node_attribute(node.id, 'available', 'ko')
+            config = Config()
+            proxy = R2labApiProxy(
+                config.value('r2labapi', 'url'),
+                config.value('r2labapi', 'admin_token'),
+                timeout=10)
+            current = proxy.get_node_availability(node.id)
+            if current['status'] == 'ko':
+                self.print(f"node {node.id} was already marked unavailable"
+                           f" ({current.get('reason') or 'no reason'})")
+                return
+            proxy.set_node_availability(
+                node.id, 'ko', f"nightly: {reason.describe()}")
         except Exception as exc:
-            self.print(f"sidecar update failed for node {node.id}: {exc}")
+            self.print(f"r2labapi update failed for node {node.id}: {exc}")
 
 
     def global_send_action(self, mode, delay=5.):
