@@ -75,6 +75,11 @@ IMAGES_TO_CHECK = [
 OFF_CHECK_DELAY = 10.
 OFF_ON_ROUNDS = 3
 
+# once the last image has been checked, keep the nodes running a bit longer,
+# so that monitornodes has time to notice the final OS (metal) on each node
+# before they are turned off
+KEEP_RUNNING_DELAY = 5.
+
 
 # reasons for failure
 class Reason(IntEnum):
@@ -440,6 +445,11 @@ class Nightly:                                         # pylint: disable=r0902
                 print("nightly in dry_run mode won't load any image on node")
             self.global_wait_ssh()
             self.global_check_image(image, check_strings)
+
+        if not self.dry_run:
+            self.print(f"keeping nodes up for {KEEP_RUNNING_DELAY}s "
+                       f"before turning off")
+            time.sleep(KEEP_RUNNING_DELAY)
 
         self.print("sending summary mail")
         html = complete_html(self.all_names, self.failures)
